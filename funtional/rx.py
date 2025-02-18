@@ -2,6 +2,9 @@ import torch
 import numpy as np
 
 
+from ..macro import C_DTYPE
+
+
 def rx_matrix(params: torch.Tensor) -> torch.Tensor:
     """RX 게이트의 유니타리 행렬을 계산
     

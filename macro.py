@@ -12,6 +12,4 @@ F_DTYPE = torch.float32 # 실수 데이터 타입 32비트
 ABC = ascii_lowercase # 알파벳 소문자
 ABC_ARRAY = np.array(list(ABC)) # 알파벳 소문자 배열
 
-INV_SQRT2 = 1 / math.sqrt(2)
-
-print(ABC_ARRAY)
+INV_SQRT2 = 1 / math.sqrt(2) # 1 / sqrt(2)
