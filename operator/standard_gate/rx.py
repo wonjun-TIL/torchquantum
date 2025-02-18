@@ -1,31 +1,67 @@
-from ..operator import Operation
-from abc import ABCMeta
-import funtional as tqf
+import torch
+import torch.nn as nn
+import numpy as np
 
-class RX(Operation, metaclass=ABCMeta):
-    """X축 회전 게이트를 위한 클래스
-    
-    단일 큐비트에 대해 X축을 중심으로 회전 연산을 수행하는 양자 게이트입니다.
-    
-    Attributes:
-        num_params (int): 게이트의 파라미터 개수 (회전각)
-        num_wires (int): 게이트가 작용하는 큐비트 수
-        op_name (str): 게이트의 이름
-        func (staticmethod): 실제 게이트 연산을 수행하는 함수
+class RXGate(nn.Module):
+    """RX 게이트를 구현하는 클래스"""
     """
-    num_params = 1   # 회전각 하나만 필요
-    num_wires = 1    # 단일 큐비트 게이트
-    op_name = "rx"   # 게이트 이름
-    func = staticmethod(tqf.rx)  # 실제 연산 함수
+    RX 게이트는 X축을 중심으로 회전하는 단일 큐비트 게이트입니다.
+    RX(θ) = exp(-iθX/2) = cos(θ/2)I - i sin(θ/2)X
 
-    @classmethod
-    def _matrix(cls, params):
-        """게이트의 유니타리 행렬을 반환
+    Args:
+        n_qubits (int): 전체 큐비트 수
+    """
+
+    def __init__(self, n_qubits):
+        super().__init__()
+        self.n_qubits = n_qubits
         
-        Args:
-            params: 회전각 파라미터
-            
-        Returns:
-            torch.Tensor: RX 게이트의 유니타리 행렬
+    def get_rx_matrix(self, theta):
+        """단일 큐비트 RX 행렬 생성"""
+        cos = torch.cos(theta/2)
+        sin = torch.sin(theta/2)
+        return torch.tensor([[cos, -1j*sin],
+                           [-1j*sin, cos]], dtype=torch.complex64)
+    
+    def forward(self, theta, target_qubit):
         """
-        return tqf.rx_matrix(params)
+        n_qubits: 전체 큐비트 수
+        theta: 회전각
+        target_qubit: RX 게이트를 적용할 큐비트 인덱스
+        """
+        if not 0 <= target_qubit < self.n_qubits:
+            raise ValueError(f"Target qubit must be between 0 and {self.n_qubits-1}")
+        
+        # 단일 큐비트 RX 행렬
+        rx = self.get_rx_matrix(theta)
+        
+        # Identity 행렬
+        I = torch.eye(2, dtype=torch.complex64)
+        
+        # 전체 시스템 행렬 구성
+        matrix = torch.tensor(1, dtype=torch.complex64)
+        
+        for i in range(self.n_qubits):
+            if i == target_qubit:
+                matrix = torch.kron(matrix, rx)
+            else:
+                matrix = torch.kron(matrix, I)
+                
+        return matrix
+
+# 테스트
+n_qubits = 2
+multi_rx = RXGate(n_qubits)
+
+# RX 게이트를 첫 번째 큐비트에 적용
+theta = torch.tensor(np.pi/2)
+matrix = multi_rx(theta, target_qubit=0)
+print("2-qubit system RX(π/2) on first qubit:")
+print(matrix)
+
+# |00⟩ 상태에 적용
+state = torch.zeros(2**n_qubits, dtype=torch.complex64)
+state[0] = 1  # |00⟩ 상태 초기화
+rotated_state = matrix @ state
+print("\nInitial state |00⟩:", state)
+print("After RX(π/2) on first qubit:", rotated_state)
