@@ -34,6 +34,8 @@ class PQCLayer(nn.Module):
         
     def apply_rotation_layer(self, state, layer_idx):
         """한 레이어의 회전 게이트들 적용"""
+        batch_size = state.shape[0]
+        
         for qubit in range(self.n_qubits):
             # 각 회전 파라미터 가져오기
             theta_x = self.rotation_params[layer_idx, qubit, 0]
@@ -45,20 +47,37 @@ class PQCLayer(nn.Module):
             ry_matrix = self.ry(theta_y, target_qubit=qubit)
             rz_matrix = self.rz(theta_z, target_qubit=qubit)
             
-            state = rx_matrix @ state
-            state = ry_matrix @ state
-            state = rz_matrix @ state
+            # 배치 차원을 고려한 행렬 곱셈
+            state = torch.bmm(
+                rx_matrix.expand(batch_size, -1, -1),
+                state.unsqueeze(-1)
+            ).squeeze(-1)
+            
+            state = torch.bmm(
+                ry_matrix.expand(batch_size, -1, -1),
+                state.unsqueeze(-1)
+            ).squeeze(-1)
+            
+            state = torch.bmm(
+                rz_matrix.expand(batch_size, -1, -1),
+                state.unsqueeze(-1)
+            ).squeeze(-1)
             
         return state
-    
+
     def apply_entanglement_layer(self, state):
         """CNOT 게이트로 얽힘 생성"""
-        # 이웃한 큐비트들 사이에 CNOT 적용
+        batch_size = state.shape[0]
+        
         for i in range(0, self.n_qubits-1):
-            state = self.cnot(control=i, target=i+1) @ state
+            cnot_matrix = self.cnot(control=i, target=i+1)
+            state = torch.bmm(
+                cnot_matrix.expand(batch_size, -1, -1),
+                state.unsqueeze(-1)
+            ).squeeze(-1)
         
         return state
-        
+            
     def forward(self, state):
         """
         Args:
